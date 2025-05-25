@@ -1,60 +1,52 @@
-# data_collection.py
 import yfinance as yf
 import pandas as pd
 
-
 def fetch_stock_data(symbol, start_date, end_date):
-    # Fetch stock data from Yahoo Finance
-    stock_data = yf.download(symbol, start=start_date, end=end_date)
-    return stock_data
-
+    return yf.download(tickers=symbol, start=start_date, end=end_date, auto_adjust=False)
 
 def collect_portfolio_data(portfolio_symbols, start_date, end_date):
-    """
-    Collect historical stock data for a portfolio of assets and save it to a CSV file.
-
-    Args:
-        portfolio_symbols (list): List of stock symbols representing the assets in the portfolio.
-        start_date (str): Start date for historical data collection (e.g., "YYYY-MM-DD").
-        end_date (str): End date for historical data collection (e.g., "YYYY-MM-DD").
-
-    Returns:
-        pd.DataFrame: DataFrame containing historical data for the portfolio.
-    """
-    # Create an empty DataFrame to store the portfolio data
     portfolio_data = pd.DataFrame()
 
-    # Iterate through portfolio symbols and fetch data
     for symbol in portfolio_symbols:
-        asset_data = yf.download(symbol, start=start_date, end=end_date)
+        print(f"\n📥 Downloading data for {symbol}...")
+        asset_data = yf.download(tickers=symbol, start=start_date, end=end_date, auto_adjust=False)
 
-        # Extract the 'Adj Close' prices and add a 'Date' column
-        asset_data = asset_data[['Adj Close']].rename(columns={'Adj Close': symbol})
-        asset_data['Date' + f'_{symbol}'] = asset_data.index.date  # Extract the date from the index
+        # Flatten MultiIndex columns if necessary
+        if isinstance(asset_data.columns, pd.MultiIndex):
+            asset_data.columns = [' '.join(col).strip() for col in asset_data.columns.values]
 
-        # Merge the asset's data with the portfolio data, using a suffix for columns from asset_data
+        # Find the actual 'Adj Close' column (may be 'Adj Close AAPL', etc.)
+        adj_close_col = next((col for col in asset_data.columns if col.lower().startswith('adj close')), None)
+
+        if not adj_close_col:
+            print(f"⚠️ 'Adj Close' column not found for {symbol}. Available: {asset_data.columns.tolist()}")
+            continue
+
+        # Extract and rename the column, reset index to get Date as column
+        asset_data = asset_data[[adj_close_col]].rename(columns={adj_close_col: symbol})
+        asset_data = asset_data.reset_index()  # Ensures Date is a column, not index
+
+        # Merge with portfolio_data on 'Date'
         if portfolio_data.empty:
             portfolio_data = asset_data
         else:
-            portfolio_data = portfolio_data.merge(
-                asset_data,
-                left_index=True,
-                right_index=True,
-                how='outer',
-                suffixes=('', f'_{symbol}')
-            )
+            portfolio_data = pd.merge(portfolio_data, asset_data, on='Date', how='outer')
 
     return portfolio_data
 
-
 if __name__ == "__main__":
-    # symbol = "AAPL"  # Replace with your chosen stock symbol
-    portfolio_symbols = ["AAPL", "MSFT", "GOOGL", "TSLA"]  # Example portfolio with multiple assets
-    start_date = "2016-01-01"
-    end_date = "2022-12-31"
-
-    # stock_data = fetch_stock_data(symbol, start_date, end_date)
-    # stock_data.to_csv("../data/stock_data.csv")
+    portfolio_symbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"]
+    start_date = "2018-01-01"
+    end_date = "2025-01-31"
 
     portfolio_data = collect_portfolio_data(portfolio_symbols, start_date, end_date)
-    portfolio_data.to_csv("data/portfolio_data.csv", index=False)
+
+    if 'Date' in portfolio_data.columns:
+        portfolio_data['Date'] = pd.to_datetime(portfolio_data['Date'])
+        portfolio_data = portfolio_data.sort_values('Date')
+
+        output_path = "data/portfolio_data.csv"
+        portfolio_data.to_csv(output_path, index=False)
+        print(f"\n✅ Data saved to {output_path}")
+    else:
+        print("❌ No data collected. Please check symbol availability or column structure.")

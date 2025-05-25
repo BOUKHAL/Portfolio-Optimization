@@ -9,7 +9,7 @@ def extract_features(data, window_sizes=[5, 10, 20, 50]):
     features = pd.DataFrame(index=data.index)
     
     # Identifier les colonnes de prix (non-Returns)
-    price_columns = [col for col in data.columns if col in ["AAPL", "MSFT", "GOOGL", "TSLA"]]
+    price_columns = [col for col in data.columns if col in ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"]]
     
     # Identifier les colonnes de rendements (contenant "Returns")
     returns_columns = [col for col in data.columns if "Returns" in col]
@@ -27,7 +27,7 @@ def extract_features(data, window_sizes=[5, 10, 20, 50]):
     # Pour chaque colonne de rendements
     for returns_col in returns_columns:
         # Extraire le symbole du nom de la colonne (par exemple AAPL de "Returns_Log Returns (AAPL)")
-        for symbol in ["AAPL", "MSFT", "GOOGL", "TSLA"]:
+        for symbol in ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"]:
             if symbol in returns_col:
                 # Créer des caractéristiques basées sur les rendements
                 for window in window_sizes:
@@ -53,7 +53,7 @@ def train_prediction_models(data, prediction_horizon=30):
     returns_map = {}
     for col in data.columns:
         if "Returns" in col:
-            for symbol in ["AAPL", "MSFT", "GOOGL", "TSLA"]:
+            for symbol in ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"]:
                 if symbol in col:
                     returns_map[symbol] = col
                     break
@@ -105,5 +105,7 @@ def train_prediction_models(data, prediction_horizon=30):
             'scaler': scaler,
             'score': score
         }
+        # ✅ Sauvegarder les noms des colonnes pour la prédiction
+        models[symbol]['feature_names'] = X.columns.tolist()
     
     return models, features

@@ -20,7 +20,7 @@ def detect_market_regimes(data, n_regimes=3):
     for col in returns_columns:
         # Identifier le symbole dans le nom de colonne
         symbol = None
-        for s in ["AAPL", "MSFT", "GOOGL", "TSLA"]:
+        for s in ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA"]:
             if s in col:
                 symbol = s
                 break
